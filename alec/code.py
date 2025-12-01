@@ -143,3 +143,160 @@ print("="*90)
 # Save cleaned data for next steps
 df.to_csv('wordle_cleaned.csv', index=False)
 print("✓ Saved: wordle_cleaned.csv (for predictive modeling)")
+
+
+# ============================================================================
+# PREDICTIVE MODEL - LINEAR REGRESSION
+# ============================================================================
+
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score, mean_squared_error
+
+print("\n" + "="*90)
+print("LINEAR REGRESSION MODEL - PREDICTING AVERAGE TRIES")
+print("="*90)
+
+# Define features and target
+features = ['unique_letters', 'num_vowels', 'has_repeated']
+X = df[features]
+y = df['avg_tries']
+
+# Train-test split (80-20)
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+# Train the model
+lr_model = LinearRegression()
+lr_model.fit(X_train, y_train)
+
+# Make predictions
+y_pred_train = lr_model.predict(X_train)
+y_pred_test = lr_model.predict(X_test)
+
+# Evaluate performance
+train_r2 = r2_score(y_train, y_pred_train)
+test_r2 = r2_score(y_test, y_pred_test)
+train_rmse = np.sqrt(mean_squared_error(y_train, y_pred_train))
+test_rmse = np.sqrt(mean_squared_error(y_test, y_pred_test))
+
+print("\nModel Performance:")
+print(f"  Training R²:   {train_r2:.4f} ({train_r2*100:.1f}% variance explained)")
+print(f"  Testing R²:    {test_r2:.4f} ({test_r2*100:.1f}% variance explained)")
+print(f"  Training RMSE: {train_rmse:.4f} tries")
+print(f"  Testing RMSE:  {test_rmse:.4f} tries")
+
+print("\nRegression Coefficients:")
+print(f"  {'Feature':<20} {'Coefficient':>12} {'Effect'}")
+print("  " + "-"*50)
+for feature, coef in zip(features, lr_model.coef_):
+    effect = "increases" if coef > 0 else "decreases"
+    print(f"  {feature:<20} {coef:>12.4f}  {effect} difficulty")
+print(f"  {'Intercept':<20} {lr_model.intercept_:>12.4f}")
+
+# Interpretation
+print("\nKey Findings:")
+if lr_model.coef_[features.index('has_repeated')] > 0:
+    print(f"  • Repeated letters increase difficulty by {lr_model.coef_[features.index('has_repeated')]:.3f} tries")
+if lr_model.coef_[features.index('unique_letters')] != 0:
+    print(f"  • Each additional unique letter changes difficulty by {lr_model.coef_[features.index('unique_letters')]:.3f} tries")
+if lr_model.coef_[features.index('num_vowels')] != 0:
+    print(f"  • Each additional vowel changes difficulty by {lr_model.coef_[features.index('num_vowels')]:.3f} tries")
+
+# Create visualization: Actual vs Predicted
+fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+
+# Plot 1: Actual vs Predicted
+axes[0].scatter(y_test, y_pred_test, alpha=0.6, s=50, edgecolors='black', linewidth=0.5)
+axes[0].plot([y.min(), y.max()], [y.min(), y.max()], 'r--', lw=2, label='Perfect Prediction')
+axes[0].set_xlabel('Actual Average Tries', fontsize=12)
+axes[0].set_ylabel('Predicted Average Tries', fontsize=12)
+axes[0].set_title(f'Actual vs Predicted (R² = {test_r2:.3f})', fontsize=13, fontweight='bold')
+axes[0].legend()
+axes[0].grid(alpha=0.3)
+
+# Add text box with metrics
+textstr = f'R² = {test_r2:.3f}\nRMSE = {test_rmse:.3f}'
+axes[0].text(0.05, 0.95, textstr, transform=axes[0].transAxes, fontsize=11,
+             verticalalignment='top', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+
+# Plot 2: Feature Importance (Coefficients)
+coef_df = pd.DataFrame({
+    'Feature': features,
+    'Coefficient': lr_model.coef_
+}).sort_values('Coefficient', key=abs, ascending=True)
+
+colors = ['red' if x < 0 else 'green' for x in coef_df['Coefficient']]
+axes[1].barh(coef_df['Feature'], coef_df['Coefficient'], color=colors, alpha=0.7, edgecolor='black')
+axes[1].axvline(x=0, color='black', linestyle='-', linewidth=0.8)
+axes[1].set_xlabel('Coefficient Value', fontsize=12)
+axes[1].set_title('Feature Importance (Regression Coefficients)', fontsize=13, fontweight='bold')
+axes[1].grid(axis='x', alpha=0.3)
+
+plt.tight_layout()
+plt.savefig('figure2_regression_results.png', dpi=300, bbox_inches='tight')
+plt.show()
+
+print("\n✓ Saved: figure2_regression_results.png")
+
+# Predict example words
+print("\n" + "="*90)
+print("EXAMPLE PREDICTIONS FOR FUTURE WORDS")
+print("="*90)
+
+def predict_word(word):
+    """Predict difficulty for a given word"""
+    features_dict = {
+        'unique_letters': len(set(word)),
+        'num_vowels': sum(1 for c in word if c in 'AEIOU'),
+        'has_repeated': int(len(word) != len(set(word)))
+    }
+    X_new = pd.DataFrame([features_dict])
+    predicted_tries = lr_model.predict(X_new)[0]
+    return predicted_tries, features_dict
+
+test_words = ['SLATE', 'CRANE', 'AUDIO', 'EERIE', 'QUEUE']
+print(f"\n{'Word':<10} {'Predicted Tries':<18} {'Unique':<8} {'Vowels':<8} {'Repeated'}")
+print("-" * 65)
+for word in test_words:
+    pred, feat = predict_word(word)
+    print(f"{word:<10} {pred:<18.2f} {feat['unique_letters']:<8} {feat['num_vowels']:<8} {'Yes' if feat['has_repeated'] else 'No'}")
+
+print("\n" + "="*90)
+print("LINEAR REGRESSION COMPLETE")
+print("="*90)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
